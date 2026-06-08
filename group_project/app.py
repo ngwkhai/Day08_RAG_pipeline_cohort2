@@ -38,13 +38,104 @@ st.markdown(
         font-family: 'Be Vietnam Pro', sans-serif;
     }
 
+    .stApp,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stMain"],
+    [data-testid="stAppViewContainer"] main {
+        background: #eaf4ff;
+    }
+
+    [data-testid="stMainBlockContainer"],
+    [data-testid="stAppViewContainer"] .block-container,
+    .block-container {
+        background: transparent;
+    }
+
+    [data-testid="stChatMessage"] {
+        background: rgba(234, 244, 255, 0.82);
+        border: 1px solid #cfe7ff;
+        border-radius: 12px;
+    }
+
+    [data-testid="stChatInput"],
+    [data-testid="stChatInput"] * {
+        opacity: 1 !important;
+    }
+
+    [data-testid="stChatInput"] [data-baseweb="textarea"],
+    [data-testid="stChatInput"] [data-baseweb="base-input"],
+    [data-testid="stChatInput"] textarea,
+    [data-testid="stChatInput"] div[contenteditable="true"] {
+        border: 2px solid #111827 !important;
+        box-shadow: 0 0 0 1px rgba(17, 24, 39, 0.2) !important;
+        opacity: 1 !important;
+    }
+
+    [data-testid="stChatInput"] [data-baseweb="textarea"]:focus-within,
+    [data-testid="stChatInput"] [data-baseweb="base-input"]:focus-within,
+    [data-testid="stChatInput"] textarea:focus,
+    [data-testid="stChatInput"] div[contenteditable="true"]:focus {
+        border-color: #000000 !important;
+        box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.18) !important;
+        outline: none !important;
+    }
+
+    [data-testid="stChatInput"] textarea:disabled,
+    [data-testid="stChatInput"] textarea[disabled],
+    [data-testid="stChatInput"] div[aria-disabled="true"],
+    [data-testid="stChatInput"] [disabled] {
+        border-color: #111827 !important;
+        color: #111827 !important;
+        -webkit-text-fill-color: #111827 !important;
+        opacity: 1 !important;
+    }
+
+    [data-testid="stChatInput"] button {
+        border-color: #111827 !important;
+        color: #111827 !important;
+        opacity: 1 !important;
+    }
+
     .main-header {
+        position: fixed;
+        top: 0.75rem;
+        left: max(2rem, calc((100vw - 1120px) / 2));
+        right: 2rem;
+        z-index: 999999;
         background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0d9488 100%);
         padding: 1.75rem 2rem;
         border-radius: 16px;
         margin-bottom: 1.5rem;
         color: white;
         box-shadow: 0 8px 32px rgba(15, 23, 42, 0.25);
+    }
+    .main-header-spacer {
+        height: 8.75rem;
+    }
+
+    @media (min-width: 993px) {
+        [data-testid="stSidebar"][aria-expanded="true"] ~ [data-testid="stAppViewContainer"] .main-header {
+            left: calc(21rem + max(2rem, (100vw - 21rem - 1120px) / 2));
+        }
+    }
+
+    @media (max-width: 700px) {
+        .main-header {
+            top: 0.5rem;
+            left: 0.75rem;
+            right: 0.75rem;
+            padding: 1rem 1.1rem;
+            border-radius: 12px;
+        }
+        .main-header h1 {
+            font-size: 1.15rem;
+        }
+        .main-header p {
+            font-size: 0.78rem;
+        }
+        .main-header-spacer {
+            height: 7.25rem;
+        }
     }
     .main-header h1 {
         margin: 0;
@@ -308,6 +399,8 @@ def main():
 """,
         unsafe_allow_html=True,
     )
+
+    st.markdown('<div class="main-header-spacer"></div>', unsafe_allow_html=True)
 
     # Stats
     c1, c2, c3 = st.columns(3)
