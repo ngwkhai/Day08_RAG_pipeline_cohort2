@@ -1,0 +1,48 @@
+# Python environments
+.venv/
+.venv*/
+venv/
+env/
+ENV/
+
+# Python cache/build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# RAG/vector-store local artifacts
+chroma_db/
+chromadb/
+vectorstore/
+vector_store/
+faiss_index/
+weaviate_data/
+*.sqlite
+*.sqlite3
+
+# Crawl/runtime caches
+.crawl4ai/
+playwright-report/
+test-results/

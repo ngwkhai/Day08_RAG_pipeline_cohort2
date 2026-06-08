@@ -30,6 +30,9 @@ from pathlib import Path
 
 STANDARDIZED_DIR = Path(__file__).parent.parent / "data" / "standardized"
 
+CHROMA_DIR = Path(__file__).parent.parent / "chroma_db"
+COLLECTION_NAME = "drug_law_docs"
+
 
 # =============================================================================
 # CONFIGURATION — Giải thích lựa chọn của bạn trong comment
@@ -45,7 +48,7 @@ EMBEDDING_MODEL = "BAAI/bge-m3"  # Vì sao? Multilingual, tốt cho tiếng Vi�
 EMBEDDING_DIM = 1024
 
 # TODO: Chọn vector store
-VECTOR_STORE = "weaviate"  # "weaviate" | "chromadb" | "faiss"
+VECTOR_STORE = "chromadb"  # "weaviate" | "chromadb" | "faiss"
 
 
 # =============================================================================
@@ -60,16 +63,16 @@ def load_documents() -> list[dict]:
         List of {'content': str, 'metadata': {'source': str, 'type': str}}
     """
     # TODO: Iterate qua STANDARDIZED_DIR, đọc .md files
-    # documents = []
-    # for md_file in STANDARDIZED_DIR.rglob("*.md"):
-    #     content = md_file.read_text(encoding="utf-8")
-    #     doc_type = "legal" if "legal" in str(md_file) else "news"
-    #     documents.append({
-    #         "content": content,
-    #         "metadata": {"source": md_file.name, "type": doc_type}
-    #     })
-    # return documents
-    raise NotImplementedError("Implement load_documents")
+    documents = []
+    for md_file in STANDARDIZED_DIR.rglob("*.md"):
+        content = md_file.read_text(encoding="utf-8")
+        doc_type = "legal" if "legal" in str(md_file) else "news"
+        documents.append({
+            "content": content,
+            "metadata": {"source": md_file.name, "type": doc_type}
+        })
+    return documents
+
 
 
 def chunk_documents(documents: list[dict]) -> list[dict]:
@@ -82,23 +85,22 @@ def chunk_documents(documents: list[dict]) -> list[dict]:
     # TODO: Implement chunking
     #
     # Ví dụ với RecursiveCharacterTextSplitter:
-    # from langchain_text_splitters import RecursiveCharacterTextSplitter
-    #
-    # splitter = RecursiveCharacterTextSplitter(
-    #     chunk_size=CHUNK_SIZE,
-    #     chunk_overlap=CHUNK_OVERLAP,
-    #     separators=["\n\n", "\n", ". ", " ", ""]
-    # )
-    # chunks = []
-    # for doc in documents:
-    #     splits = splitter.split_text(doc["content"])
-    #     for i, chunk_text in enumerate(splits):
-    #         chunks.append({
-    #             "content": chunk_text,
-    #             "metadata": {**doc["metadata"], "chunk_index": i}
-    #         })
-    # return chunks
-    raise NotImplementedError("Implement chunk_documents")
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+    
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP,
+        separators=["\n\n", "\n", ". ", " ", ""]
+    )
+    chunks = []
+    for doc in documents:
+        splits = splitter.split_text(doc["content"])
+        for i, chunk_text in enumerate(splits):
+            chunks.append({
+                "content": chunk_text,
+                "metadata": {**doc["metadata"], "chunk_index": i}
+            })
+    return chunks
 
 
 def embed_chunks(chunks: list[dict]) -> list[dict]:
@@ -111,48 +113,102 @@ def embed_chunks(chunks: list[dict]) -> list[dict]:
     # TODO: Implement embedding
     #
     # Ví dụ với sentence-transformers:
-    # from sentence_transformers import SentenceTransformer
-    #
-    # model = SentenceTransformer(EMBEDDING_MODEL)
-    # texts = [c["content"] for c in chunks]
-    # embeddings = model.encode(texts, show_progress_bar=True)
-    # for chunk, emb in zip(chunks, embeddings):
-    #     chunk["embedding"] = emb.tolist()
-    # return chunks
-    raise NotImplementedError("Implement embed_chunks")
+    from sentence_transformers import SentenceTransformer
+    
+    model = SentenceTransformer(EMBEDDING_MODEL)
+    texts = [c["content"] for c in chunks]
+    embeddings = model.encode(texts, show_progress_bar=True)
+    for chunk, emb in zip(chunks, embeddings):
+        chunk["embedding"] = emb.tolist()
+    return chunks
 
+
+
+# def index_to_vectorstore(chunks: list[dict]):
+#     """
+#     Lưu chunks vào vector store đã chọn.
+#     """
+#     # TODO: Implement indexing
+#     #
+#     # Ví dụ với Weaviate:
+#     import weaviate
+#     from weaviate.classes.config import Configure, Property, DataType
+    
+#     client = weaviate.connect_to_local()  # hoặc connect_to_weaviate_cloud()
+    
+#     # Tạo collection
+#     collection = client.collections.create(
+#         name="DrugLawDocs",
+#         vectorizer_config=Configure.Vectorizer.none(),
+#         properties=[
+#             Property(name="content", data_type=DataType.TEXT),
+#             Property(name="source", data_type=DataType.TEXT),
+#             Property(name="doc_type", data_type=DataType.TEXT),
+#         ]
+#     )
+    
+#     # Insert chunks
+#     with collection.batch.dynamic() as batch:
+#         for chunk in chunks:
+#             batch.add_object(
+#                 properties={"content": chunk["content"], ...},
+#                 vector=chunk["embedding"]
+#             )
 
 def index_to_vectorstore(chunks: list[dict]):
     """
-    Lưu chunks vào vector store đã chọn.
+    Lưu chunks vào ChromaDB local.
+
+    ChromaDB PersistentClient lưu index xuống ổ đĩa tại chroma_db/,
+    phù hợp cho bài cá nhân vì không cần chạy Docker/server riêng.
     """
-    # TODO: Implement indexing
-    #
-    # Ví dụ với Weaviate:
-    # import weaviate
-    # from weaviate.classes.config import Configure, Property, DataType
-    #
-    # client = weaviate.connect_to_local()  # hoặc connect_to_weaviate_cloud()
-    #
-    # # Tạo collection
-    # collection = client.collections.create(
-    #     name="DrugLawDocs",
-    #     vectorizer_config=Configure.Vectorizer.none(),
-    #     properties=[
-    #         Property(name="content", data_type=DataType.TEXT),
-    #         Property(name="source", data_type=DataType.TEXT),
-    #         Property(name="doc_type", data_type=DataType.TEXT),
-    #     ]
-    # )
-    #
-    # # Insert chunks
-    # with collection.batch.dynamic() as batch:
-    #     for chunk in chunks:
-    #         batch.add_object(
-    #             properties={"content": chunk["content"], ...},
-    #             vector=chunk["embedding"]
-    #         )
-    raise NotImplementedError("Implement index_to_vectorstore")
+    import chromadb
+
+    client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+
+    # Xóa collection cũ để mỗi lần chạy pipeline không bị duplicate ID.
+    try:
+        client.delete_collection(name=COLLECTION_NAME)
+    except Exception:
+        pass
+
+    collection = client.get_or_create_collection(
+        name=COLLECTION_NAME,
+        metadata={"hnsw:space": "cosine"},
+    )
+
+    ids = []
+    documents = []
+    embeddings = []
+    metadatas = []
+
+    for chunk in chunks:
+        metadata = chunk["metadata"]
+        source = metadata.get("source", "unknown")
+        chunk_index = metadata.get("chunk_index", 0)
+
+        ids.append(f"{source}-{chunk_index}")
+        documents.append(chunk["content"])
+        embeddings.append(chunk["embedding"])
+        metadatas.append({
+            "source": source,
+            "doc_type": metadata.get("type", "unknown"),
+            "chunk_index": chunk_index,
+        })
+
+    batch_size = 100
+    for start in range(0, len(chunks), batch_size):
+        end = start + batch_size
+        collection.add(
+            ids=ids[start:end],
+            documents=documents[start:end],
+            embeddings=embeddings[start:end],
+            metadatas=metadatas[start:end],
+        )
+
+    print(f"Indexed {collection.count()} chunks into ChromaDB: {CHROMA_DIR}")
+    return collection
+
 
 
 def run_pipeline():

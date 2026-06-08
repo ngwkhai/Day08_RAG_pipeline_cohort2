@@ -13,8 +13,14 @@ Cài đặt:
 
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+
+from pathlib import Path
+from urllib.parse import urlparse
+
+from crawl4ai import AsyncWebCrawler
+
 
 DATA_DIR = Path(__file__).parent.parent / "data" / "landing" / "news"
 
@@ -27,9 +33,11 @@ def setup_directory():
 # TODO: Điền danh sách URL bài báo cần crawl
 ARTICLE_URLS = [
     # Ví dụ:
-    # "https://vnexpress.net/...",
-    # "https://tuoitre.vn/...",
-    # "https://thanhnien.vn/...",
+    "https://vnexpress.net/dien-vien-hai-huu-tin-su-dung-ma-tuy-vi-to-mo-4599355.html",
+    "https://tuoitre.vn/ca-si-miu-le-bi-bat-qua-tang-su-dung-ma-tuy-o-hai-phong-20260511172700149.htm",
+    "https://thanhnien.vn/nu-dien-vien-le-hang-bi-bat-vi-di-buon-ma-tuy-185230423181213443.htm",
+    "https://dantri.com.vn/van-hoa/nhung-nghe-si-viet-lao-dao-vi-dinh-vao-ma-tuy-20230424033137629.htm",
+    "https://laodong.vn/giai-tri/nha-thiet-ke-cong-tri-bi-bat-va-loat-sao-viet-tung-dinh-toi-ma-tuy-1545393.ldo"
 ]
 
 
@@ -48,14 +56,15 @@ async def crawl_article(url: str) -> dict:
     from crawl4ai import AsyncWebCrawler
 
     # TODO: Implement crawling logic
-    # async with AsyncWebCrawler() as crawler:
-    #     result = await crawler.arun(url=url)
-    #     return {
-    #         "url": url,
-    #         "title": result.metadata.get("title", "Unknown"),
-    #         "date_crawled": datetime.now().isoformat(),
-    #         "content_markdown": result.markdown,
-    #     }
+    async with AsyncWebCrawler() as crawler:
+        result = await crawler.arun(url=url)
+        return {
+            "url": url,
+            "title": result.metadata.get("title", "Unknown"),
+            "date_crawled": datetime.now().isoformat(),
+            "content_markdown": result.markdown,
+        }
+
     raise NotImplementedError("Implement crawl_article")
 
 
@@ -70,7 +79,10 @@ async def crawl_all():
         # Lưu file JSON
         filename = f"article_{i:02d}.json"
         filepath = DATA_DIR / filename
-        filepath.write_text(json.dumps(article, ensure_ascii=False, indent=2))
+        filepath.write_text(
+            json.dumps(article, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
         print(f"  ✓ Saved: {filepath}")
 
 
