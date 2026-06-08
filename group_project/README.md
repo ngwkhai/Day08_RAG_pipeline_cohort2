@@ -256,13 +256,13 @@ flowchart TB
 
 ---
 
-### Thành viên 1 + 2 — Kiến trúc & Chatbot UI
+### Nguyễn Đình Khải + Nguyễn Đăng Dương — Kiến trúc & Chatbot UI
 
 **Mục tiêu:** Xây chatbot demo end-to-end — **2 người code song song**, pair programming / chia file, merge thường xuyên.
 
 #### Chia việc trong cặp 
 
-| Hạng mục | Thành viên 1 | Thành viên 2 |
+| Hạng mục | Nguyễn Đình Khải| Nguyễn Đăng Dương |
 |----------|--------------|--------------|
 | Kiến trúc | Diagram, mô tả luồng trong README | Wrapper gọi `retrieve()` + `generate_with_citation()` |
 | Backend app | Module `rag_service.py`: pipeline, error handling | Config A/B (2 chế độ retrieval) |
@@ -278,10 +278,6 @@ flowchart TB
 - [ ] README nhóm: kiến trúc + hướng dẫn chạy
 - [ ] Định nghĩa **Config A/B** cho TV4 chạy eval
 
-**Gợi ý 2 config A/B (cho TV4):**
-- **Config A:** Hybrid đầy đủ (semantic + BM25 + RRF + rerank + PageIndex fallback)
-- **Config B:** Dense-only (chỉ semantic search, tắt rerank / lexical)
-
 **Luồng app:**
 ```
 User input → (optional: rewrite follow-up) → generate_with_citation()
@@ -296,7 +292,7 @@ User input → (optional: rewrite follow-up) → generate_with_citation()
 
 ---
 
-### Thành viên 3 — Golden Dataset & Kiểm tra dữ liệu
+### Tôn Thành Đạt — Golden Dataset & Kiểm tra dữ liệu
 
 **Mục tiêu:** Bộ dữ liệu đánh giá đủ 15 câu, phủ cả pháp luật lẫn tin tức.
 
@@ -309,16 +305,9 @@ User input → (optional: rewrite follow-up) → generate_with_citation()
 | Hỗ trợ eval | Gắn nhãn `category`: `legal` / `news` để phân tích worst performers |
 | Data nhóm | Rà soát 4 bộ pipeline cá nhân đã index đủ (ChromaDB có data) |
 
-**Gợi ý chủ đề câu hỏi:**
-- Hình phạt tội ma tuý (Điều 249–251 BLHS)
-- Cai nghiện bắt buộc / tự nguyện (Luật 2021)
-- Danh mục chất ma tuý
-- Ca sĩ Long Nhật, Miu Lê, Sơn Ngọc Minh (tin tức)
-- Ma túy trong showbiz (bài phân tích)
-
 ---
 
-### Thành viên 4 — Evaluation Pipeline & Báo cáo
+### Hà Xuân Huy — Evaluation Pipeline & Báo cáo
 
 **Mục tiêu:** Chạy eval tự động, so sánh A/B, viết báo cáo có phân tích.
 
@@ -335,7 +324,7 @@ User input → (optional: rewrite follow-up) → generate_with_citation()
 
 ### Lịch làm việc
 
-| Tuần | TV1 + TV2 | TV3 | TV4 |
+| Thứ tự | Dương + Khải | Đạt | Huy |
 |------|------------------|-----|-----|
 | 1 | Skeleton app + diagram + prototype UI | 8 câu golden dataset | Setup DeepEval |
 | 2 | Tích hợp pipeline + memory + sources panel | Đủ 15 câu + review | Chạy eval Config A |
@@ -346,14 +335,14 @@ User input → (optional: rewrite follow-up) → generate_with_citation()
 
 ### Checklist nộp bài 
 
-- [ ] Chatbot chạy local (`streamlit run ...`)
-- [ ] Trả lời có citation + hiển thị sources
-- [ ] Follow-up questions hoạt động
-- [ ] `golden_dataset.json` ≥ 15 câu
-- [ ] `eval_pipeline.py` chạy 4 metrics
-- [ ] So sánh A/B ≥ 2 configs trong `results.md`
-- [ ] README nhóm có kiến trúc + phân công (bảng dưới)
-- [ ] Code push lên repo chung
+- [✅] Chatbot chạy local (`streamlit run ...`)
+- [✅] Trả lời có citation + hiển thị sources
+- [✅] Follow-up questions hoạt động
+- [✅] `golden_dataset.json` ≥ 15 câu
+- [✅] `eval_pipeline.py` chạy 4 metrics
+- [✅] So sánh A/B ≥ 2 configs trong `results.md`
+- [✅] README nhóm có kiến trúc + phân công (bảng dưới)
+- [✅] Code push lên repo chung
 
 ---
 
@@ -361,10 +350,10 @@ User input → (optional: rewrite follow-up) → generate_with_citation()
 
 | Thành viên | MSSV | Nhiệm vụ | Trạng thái |
 |-----------|------|----------|------------|
-| Thành viên 1 | | Kiến trúc & UI: backend, diagram, README, config A/B | ⬜ Chưa bắt đầu |
-| Thành viên 2 | | Kiến trúc & UI: chat UI, memory, citation, sources panel | ⬜ Chưa bắt đầu |
-| Thành viên 3 | | Golden dataset ≥15 Q&A, kiểm tra dữ liệu nhóm | ⬜ Chưa bắt đầu |
-| Thành viên 4 | | Evaluation: DeepEval, A/B test, `results.md` | ⬜ Chưa bắt đầu |
+| Nguyễn Đình Khải | | Kiến trúc & UI: backend, diagram, README, config A/B | ✅ Đã hoàn thành |
+| Nguyễn Đăng Dương | | Kiến trúc & UI: chat UI, memory, citation, sources panel | ✅ Đã hoàn thành|
+| Tôn Thành Đạt | | Golden dataset ≥15 Q&A, kiểm tra dữ liệu nhóm | ✅ Đã hoàn thành |
+| Hà Xuân Huy | | Evaluation: DeepEval, A/B test, `results.md` | ✅ Đã hoàn thành |
 
 ---
 
