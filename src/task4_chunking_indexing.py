@@ -37,6 +37,9 @@ EMBEDDING_DIM = 1024
 # học tập không cần cài Docker/Weaviate Cloud. Task 5 sẽ query cùng collection này.
 VECTOR_STORE = "chromadb"  # "weaviate" | "chromadb" | "faiss"
 
+EMBEDDING_DEVICE = "auto"  # "auto" | "cuda" | "cpu"
+_embedding_model = None
+
 
 # =============================================================================
 # IMPLEMENTATION
@@ -98,9 +101,36 @@ def chunk_documents(documents: list[dict]) -> list[dict]:
 
 
 def _get_embedding_model():
+    global _embedding_model
+    if _embedding_model is not None:
+        return _embedding_model
+
     from sentence_transformers import SentenceTransformer
 
-    return SentenceTransformer(EMBEDDING_MODEL)
+    device = None
+    if EMBEDDING_DEVICE == "auto":
+        try:
+            import torch
+
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        except Exception:
+            device = None
+    elif EMBEDDING_DEVICE in ("cuda", "cpu"):
+        device = EMBEDDING_DEVICE
+
+    if device:
+        print(f"  Embedding device: {device}")
+        _embedding_model = SentenceTransformer(
+            EMBEDDING_MODEL,
+            device=device,
+            model_kwargs={"use_safetensors": True},
+        )
+        return _embedding_model
+    _embedding_model = SentenceTransformer(
+        EMBEDDING_MODEL,
+        model_kwargs={"use_safetensors": True},
+    )
+    return _embedding_model
 
 
 def embed_chunks(chunks: list[dict], batch_size: int = 32) -> list[dict]:

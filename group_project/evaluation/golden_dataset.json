@@ -1,17 +1,107 @@
 [
   {
-    "question": "Hình phạt cho tội tàng trữ trái phép chất ma tuý theo Điều 249 Bộ luật Hình sự?",
-    "expected_answer": "Phạt tù từ 1 đến 5 năm đối với trường hợp tàng trữ từ 1g đến dưới 5g heroin hoặc cocaine, hoặc chất ma tuý khác với khối lượng tương đương.",
-    "expected_context": "Bộ luật Hình sự 2015, Điều 249"
+    "id": "legal_001",
+    "category": "legal",
+    "question": "Hinh phat cho toi tang tru trai phep chat ma tuy theo Dieu 249 Bo luat Hinh su la gi?",
+    "expected_answer": "Dieu 249 Bo luat Hinh su quy dinh toi tang tru trai phep chat ma tuy co the bi phat tu, muc phat thay doi theo loai chat, khoi luong va tinh tiet tang nang.",
+    "expected_context": "bo-luat-hinh-su-2015-sua-doi-2017, Dieu 249, tang tru trai phep chat ma tuy"
   },
   {
-    "question": "Luật Phòng chống ma tuý 2021 quy định những hình thức cai nghiện nào?",
-    "expected_answer": "Cai nghiện tự nguyện tại gia đình, cai nghiện tự nguyện tại cộng đồng, cai nghiện tự nguyện tại cơ sở cai nghiện, và cai nghiện bắt buộc tại cơ sở cai nghiện.",
-    "expected_context": "Luật Phòng chống ma tuý 2021, Chương V"
+    "id": "legal_002",
+    "category": "legal",
+    "question": "Toi van chuyen trai phep chat ma tuy duoc quy dinh tai dieu nao cua Bo luat Hinh su?",
+    "expected_answer": "Toi van chuyen trai phep chat ma tuy duoc quy dinh tai Dieu 250 Bo luat Hinh su, voi cac khung hinh phat theo tinh chat, khoi luong va muc do nguy hiem.",
+    "expected_context": "bo-luat-hinh-su-2015-sua-doi-2017, Dieu 250, van chuyen trai phep chat ma tuy"
   },
   {
-    "question": "Danh mục các chất ma tuý thuộc nhóm I theo quy định pháp luật Việt Nam gồm những chất nào?",
-    "expected_answer": "Nhóm I gồm các chất ma tuý tuyệt đối cấm sử dụng trong y học và đời sống, bao gồm heroin, cocaine, methamphetamine, MDMA (ecstasy), cannabis (cần sa), và các chất tương tự.",
-    "expected_context": "Nghị định 57/2022/NĐ-CP, Phụ lục I"
+    "id": "legal_003",
+    "category": "legal",
+    "question": "Toi mua ban trai phep chat ma tuy nam o dieu nao va noi dung chinh la gi?",
+    "expected_answer": "Toi mua ban trai phep chat ma tuy duoc quy dinh tai Dieu 251 Bo luat Hinh su, xu ly hanh vi mua ban chat ma tuy trai phep voi nhieu khung hinh phat.",
+    "expected_context": "bo-luat-hinh-su-2015-sua-doi-2017, Dieu 251, mua ban trai phep chat ma tuy"
+  },
+  {
+    "id": "legal_004",
+    "category": "legal",
+    "question": "Luat Phong chong ma tuy 2021 quy dinh nhung hinh thuc cai nghien ma tuy nao?",
+    "expected_answer": "Luat Phong chong ma tuy 2021 quy dinh cac hinh thuc cai nghien gom cai nghien tu nguyen va cai nghien bat buoc, thuc hien tai gia dinh, cong dong hoac co so cai nghien theo tung truong hop.",
+    "expected_context": "luat-phong-chong-ma-tuy-2021, cai nghien ma tuy, tu nguyen, bat buoc"
+  },
+  {
+    "id": "legal_005",
+    "category": "legal",
+    "question": "Nghi dinh 105/2021/ND-CP huong dan noi dung gi lien quan den Luat Phong chong ma tuy?",
+    "expected_answer": "Nghi dinh 105/2021/ND-CP quy dinh chi tiet va huong dan thi hanh mot so dieu cua Luat Phong chong ma tuy, trong do co quan ly nguoi su dung trai phep chat ma tuy va cong tac cai nghien.",
+    "expected_context": "nghi-dinh-105-2021-nd-cp, huong dan thi hanh, Luat Phong chong ma tuy"
+  },
+  {
+    "id": "legal_006",
+    "category": "legal",
+    "question": "Quy trinh xac dinh tinh trang nghien ma tuy can dua tren nhung gi?",
+    "expected_answer": "Quy trinh xac dinh tinh trang nghien ma tuy dua tren tieu chuan chan doan, quy trinh chuyen mon va danh gia cua co so y te co tham quyen.",
+    "expected_context": "quy-dinh-tieu-chuan-chan-doan-quy-trinh-chuyen-mon-xac-dinh-tinh-trang-nghien-ma-tuy"
+  },
+  {
+    "id": "legal_007",
+    "category": "legal",
+    "question": "Huong dan ap dung quy dinh ve cac toi pham ma tuy dung de lam gi?",
+    "expected_answer": "Tai lieu huong dan ap dung quy dinh ve cac toi pham ma tuy giup thong nhat cach xac dinh hanh vi, toi danh, tinh tiet va khung hinh phat trong cac vu an ma tuy.",
+    "expected_context": "huong-dan-ap-dung-quy-dinh-ve-cac-toi-pham-ma-tuy"
+  },
+  {
+    "id": "legal_008",
+    "category": "legal",
+    "question": "Nguoi su dung trai phep chat ma tuy co lien quan den bien phap quan ly va cai nghien nhu the nao?",
+    "expected_answer": "Nguoi su dung trai phep chat ma tuy co the bi quan ly, lap ho so va ap dung cac bien phap cai nghien phu hop theo Luat Phong chong ma tuy va van ban huong dan.",
+    "expected_context": "Luat Phong chong ma tuy 2021, Nghi dinh 105/2021/ND-CP, nguoi su dung trai phep chat ma tuy"
+  },
+  {
+    "id": "legal_009",
+    "category": "legal",
+    "question": "Bo luat Hinh su sua doi 2017 co lien quan gi den cac toi pham ve ma tuy?",
+    "expected_answer": "Bo luat Hinh su 2015 sua doi 2017 quy dinh chuong cac toi pham ve ma tuy, bao gom san xuat, tang tru, van chuyen, mua ban va to chuc su dung trai phep chat ma tuy.",
+    "expected_context": "bo-luat-hinh-su-2015-sua-doi-2017, cac toi pham ve ma tuy"
+  },
+  {
+    "id": "legal_010",
+    "category": "legal",
+    "question": "Cai nghien bat buoc khac gi voi cai nghien tu nguyen?",
+    "expected_answer": "Cai nghien tu nguyen do nguoi nghien tu nguyen dang ky thuc hien, con cai nghien bat buoc la bien phap ap dung theo dieu kien va thu tuc phap luat quy dinh.",
+    "expected_context": "luat-phong-chong-ma-tuy-2021, cai nghien tu nguyen, cai nghien bat buoc"
+  },
+  {
+    "id": "news_001",
+    "category": "news",
+    "question": "Bai VnExpress nao noi ve ca si Long Nhat va Son Ngoc Minh bi bat vi lien quan ma tuy?",
+    "expected_answer": "Bai VnExpress co tieu de ve ca si Long Nhat, Son Ngoc Minh bi bat vi lien quan ma tuy, tap trung vao su viec hai ca si bi co quan chuc nang xu ly.",
+    "expected_context": "ca-si-long-nhat-son-ngoc-minh-bi-bat-vi-lien-quan-ma-tuy-5060857"
+  },
+  {
+    "id": "news_002",
+    "category": "news",
+    "question": "Bai Ma tuy trong loi song showbiz phan tich van de gi?",
+    "expected_answer": "Bai Ma tuy trong loi song showbiz phan tich hien tuong ma tuy trong moi truong giai tri, tac dong den nghe si, hinh anh cong chung va doi song xa hoi.",
+    "expected_context": "ma-tuy-trong-loi-song-showbiz-5074606"
+  },
+  {
+    "id": "news_003",
+    "category": "news",
+    "question": "Bai ve dien vien hai Huu Tin tren VnExpress noi ly do su dung ma tuy la gi?",
+    "expected_answer": "Bai ve dien vien hai Huu Tin tren VnExpress neu noi dung Huu Tin khai su dung ma tuy vi to mo.",
+    "expected_context": "dien-vien-hai-huu-tin-su-dung-ma-tuy-vi-to-mo-4599355"
+  },
+  {
+    "id": "news_004",
+    "category": "news",
+    "question": "Bai Tuoi Tre ve vu Miu Le o Cat Ba noi den viec gi?",
+    "expected_answer": "Bai Tuoi Tre ve vu Miu Le o Cat Ba noi den viec khoi to cac bi can trong vu su dung ma tuy o Cat Ba.",
+    "expected_context": "khoi-to-3-bi-can-trong-vu-ca-si-miu-le-su-dung-ma-tuy-o-cat-ba-20260514230349573"
+  },
+  {
+    "id": "news_005",
+    "category": "news",
+    "question": "Cac bai bao ve Chi Dan, An Tay va Truc Phuong lien quan den chu de nao?",
+    "expected_answer": "Cac bai bao ve Chi Dan, An Tay va Nguyen Do Truc Phuong lien quan den vu viec su dung hoac to chuc su dung ma tuy va qua trinh dieu tra, khoi to.",
+    "expected_context": "chi-dan, an-tay, nguyen-do-truc-phuong, ma tuy"
   }
 ]
