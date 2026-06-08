@@ -12,11 +12,17 @@ Logic:
     5. Return top_k results
 """
 
-from .task5_semantic_search import semantic_search
-from .task6_lexical_search import lexical_search
-from .task7_reranking import rerank, rerank_rrf
-from .task8_pageindex_vectorless import pageindex_search
+import sys
+from pathlib import Path
 
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from src.task5_semantic_search import semantic_search
+from src.task6_lexical_search import lexical_search
+from src.task7_reranking import rerank, rerank_rrf
+from src.task8_pageindex_vectorless import pageindex_search
 
 # =============================================================================
 # CONFIGURATION
@@ -25,6 +31,42 @@ from .task8_pageindex_vectorless import pageindex_search
 SCORE_THRESHOLD = 0.3   # Nếu best score < threshold → fallback PageIndex
 DEFAULT_TOP_K = 5
 RERANK_METHOD = "cross_encoder"  # "cross_encoder" | "mmr" | "rrf"
+CANDIDATE_MULTIPLIER = 2  # Lấy top_k * 2 candidates trước khi merge/rerank
+
+
+def _tag_hybrid(results: list[dict]) -> list[dict]:
+    tagged = []
+    for item in results:
+        row = item.copy()
+        row["source"] = "hybrid"
+        tagged.append(row)
+    return tagged
+
+
+def _hybrid_retrieve(
+    query: str,
+    top_k: int,
+    use_reranking: bool,
+) -> list[dict]:
+    """Chạy semantic + lexical, merge RRF, rerank."""
+    candidate_k = max(top_k * CANDIDATE_MULTIPLIER, top_k)
+
+    dense_results = semantic_search(query, top_k=candidate_k)
+    sparse_results = lexical_search(query, top_k=candidate_k)
+
+    if not dense_results and not sparse_results:
+        return []
+
+    merged = rerank_rrf(
+        [r for r in (dense_results, sparse_results) if r],
+        top_k=candidate_k,
+    )
+    merged = _tag_hybrid(merged)
+
+    if use_reranking and merged:
+        return rerank(query, merged, top_k=top_k, method=RERANK_METHOD)
+
+    return merged[:top_k]
 
 
 def retrieve(
@@ -61,32 +103,24 @@ def retrieve(
             'source': str  # 'hybrid' hoặc 'pageindex'
         }
     """
-    # TODO: Implement full retrieval pipeline
-    #
-    # Step 1: Song song chạy semantic + lexical
-    # dense_results = semantic_search(query, top_k=top_k * 2)
-    # sparse_results = lexical_search(query, top_k=top_k * 2)
-    #
-    # Step 2: Merge bằng RRF
-    # merged = rerank_rrf([dense_results, sparse_results], top_k=top_k * 2)
-    # for item in merged:
-    #     item["source"] = "hybrid"
-    #
-    # Step 3: Rerank
-    # if use_reranking and merged:
-    #     final_results = rerank(query, merged, top_k=top_k, method=RERANK_METHOD)
-    # else:
-    #     final_results = merged[:top_k]
-    #
-    # Step 4: Check threshold → fallback
-    # if not final_results or final_results[0]["score"] < score_threshold:
-    #     print(f"  ⚠ Hybrid score ({final_results[0]['score']:.3f} if final_results else 0}) "
-    #           f"< threshold ({score_threshold}). Fallback → PageIndex")
-    #     fallback = pageindex_search(query, top_k=top_k)
-    #     return fallback
-    #
-    # return final_results[:top_k]
-    raise NotImplementedError("Implement retrieve")
+    if top_k <= 0:
+        return []
+
+    hybrid_results = _hybrid_retrieve(query, top_k, use_reranking)
+    best_score = hybrid_results[0]["score"] if hybrid_results else 0.0
+
+    if hybrid_results and best_score >= score_threshold:
+        return hybrid_results[:top_k]
+
+    # Fallback PageIndex khi không có kết quả hoặc score thấp
+    try:
+        fallback = pageindex_search(query, top_k=top_k)
+        if fallback:
+            return fallback[:top_k]
+    except Exception as exc:
+        print(f"  ⚠ PageIndex fallback thất bại: {exc}")
+
+    return hybrid_results[:top_k]
 
 
 if __name__ == "__main__":

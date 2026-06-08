@@ -10,12 +10,18 @@ Hướng dẫn:
 """
 
 import os
+import sys
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-load_dotenv()
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
-from .task9_retrieval_pipeline import retrieve
+load_dotenv(_ROOT / ".env")
 
+from src.task9_retrieval_pipeline import retrieve
 
 # =============================================================================
 # CONFIGURATION — Giải thích lựa chọn
@@ -26,12 +32,14 @@ from .task9_retrieval_pipeline import retrieve
 TOP_K = 5
 
 # top_p (nucleus sampling): Xác suất tích luỹ cho token generation
-# Chọn 0.9 vì: đủ diverse nhưng không quá random
+# Chọn 0.9 vì: đủ diverse nhưng không quá random, phù hợp câu trả lời factual
 TOP_P = 0.9
 
 # temperature: Độ ngẫu nhiên của output
-# Chọn 0.3 vì: RAG cần factual, ít sáng tạo
+# Chọn 0.3 vì: RAG cần factual, ít sáng tạo, giảm hallucination
 TEMPERATURE = 0.3
+
+LLM_MODEL = "gpt-4o-mini"
 
 
 # =============================================================================
@@ -75,25 +83,34 @@ def reorder_for_llm(chunks: list[dict]) -> list[dict]:
     Returns:
         List reordered để maximize LLM attention.
     """
-    # TODO: Implement reordering
-    #
-    # if len(chunks) <= 2:
-    #     return chunks
-    #
-    # # Split into first half (important → đầu) and second half (important → cuối)
-    # reordered = []
-    # for i in range(0, len(chunks), 2):
-    #     reordered.append(chunks[i])  # Odd positions go first
-    # for i in range(len(chunks) - 1 - (len(chunks) % 2 == 0), 0, -2):
-    #     reordered.append(chunks[i])  # Even positions go last (reversed)
-    #
-    # return reordered
-    raise NotImplementedError("Implement reorder_for_llm")
+    if len(chunks) <= 2:
+        return list(chunks)
+
+    # Chỉ số chẵn (0, 2, 4, ...) → đầu prompt; chỉ số lẻ đảo ngược → cuối prompt
+    reordered = [chunks[i] for i in range(0, len(chunks), 2)]
+    odd_start = len(chunks) - 1 if len(chunks) % 2 == 0 else len(chunks) - 2
+    for i in range(odd_start, 0, -2):
+        reordered.append(chunks[i])
+    return reordered
 
 
 # =============================================================================
 # CONTEXT FORMATTING
 # =============================================================================
+
+def _source_label(metadata: dict) -> str:
+    """Tạo nhãn nguồn dễ cite cho LLM."""
+    source = metadata.get("source") or metadata.get("file") or "Unknown"
+    doc_type = metadata.get("type") or metadata.get("doc_type") or ""
+    path = metadata.get("path") or ""
+
+    label = source
+    if doc_type:
+        label = f"{label} ({doc_type})"
+    if path and path != source:
+        label = f"{label} | {path}"
+    return label
+
 
 def format_context(chunks: list[dict]) -> str:
     """
@@ -106,23 +123,46 @@ def format_context(chunks: list[dict]) -> str:
     Returns:
         Formatted context string.
     """
-    # TODO: Implement context formatting
-    #
-    # context_parts = []
-    # for i, chunk in enumerate(chunks, 1):
-    #     source = chunk.get("metadata", {}).get("source", f"Source {i}")
-    #     doc_type = chunk.get("metadata", {}).get("type", "unknown")
-    #     context_parts.append(
-    #         f"[Document {i} | Source: {source} | Type: {doc_type}]\n"
-    #         f"{chunk['content']}\n"
-    #     )
-    # return "\n---\n".join(context_parts)
-    raise NotImplementedError("Implement format_context")
+    if not chunks:
+        return "(Không có ngữ cảnh liên quan)"
+
+    context_parts = []
+    for i, chunk in enumerate(chunks, 1):
+        metadata = chunk.get("metadata") or {}
+        source = _source_label(metadata)
+        score = chunk.get("score", 0)
+        context_parts.append(
+            f"[Document {i} | Source: {source} | Score: {score:.3f}]\n"
+            f"{chunk['content']}\n"
+        )
+    return "\n---\n".join(context_parts)
 
 
 # =============================================================================
 # GENERATION
 # =============================================================================
+
+def _call_llm(system_prompt: str, user_message: str) -> str:
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    if not api_key or api_key == "sk-xxx":
+        raise ValueError(
+            "OPENAI_API_KEY chưa được cấu hình trong .env"
+        )
+
+    from openai import OpenAI
+
+    client = OpenAI(api_key=api_key)
+    response = client.chat.completions.create(
+        model=LLM_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ],
+        temperature=TEMPERATURE,
+        top_p=TOP_P,
+    )
+    return response.choices[0].message.content or ""
+
 
 def generate_with_citation(query: str, top_k: int = TOP_K) -> dict:
     """
@@ -138,6 +178,7 @@ def generate_with_citation(query: str, top_k: int = TOP_K) -> dict:
 
     Args:
         query: Câu hỏi của user
+        top_k: Số chunks retrieve
 
     Returns:
         {
@@ -146,43 +187,32 @@ def generate_with_citation(query: str, top_k: int = TOP_K) -> dict:
             'retrieval_source': str  # 'hybrid' hoặc 'pageindex'
         }
     """
-    # TODO: Implement generation pipeline
-    #
-    # # Step 1: Retrieve
-    # chunks = retrieve(query, top_k=top_k)
-    #
-    # # Step 2: Reorder
-    # reordered = reorder_for_llm(chunks)
-    #
-    # # Step 3: Format context
-    # context = format_context(reordered)
-    #
-    # # Step 4: Build prompt
-    # user_message = f"""Context:\n{context}\n\n---\n\nQuestion: {query}"""
-    #
-    # # Step 5: Call LLM
-    # from openai import OpenAI
-    # client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    #
-    # response = client.chat.completions.create(
-    #     model="gpt-4o-mini",
-    #     messages=[
-    #         {"role": "system", "content": SYSTEM_PROMPT},
-    #         {"role": "user", "content": user_message}
-    #     ],
-    #     temperature=TEMPERATURE,
-    #     top_p=TOP_P,
-    # )
-    #
-    # answer = response.choices[0].message.content
-    #
-    # # Step 6: Return
-    # return {
-    #     "answer": answer,
-    #     "sources": chunks,
-    #     "retrieval_source": chunks[0].get("source", "hybrid") if chunks else "none"
-    # }
-    raise NotImplementedError("Implement generate_with_citation")
+    chunks = retrieve(query, top_k=top_k)
+
+    if not chunks:
+        return {
+            "answer": "Tôi không thể xác minh thông tin này từ nguồn hiện có.",
+            "sources": [],
+            "retrieval_source": "none",
+        }
+
+    reordered = reorder_for_llm(chunks)
+    context = format_context(reordered)
+
+    user_message = (
+        f"Context:\n{context}\n\n"
+        f"---\n\n"
+        f"Question: {query}\n\n"
+        "Hãy trả lời bằng tiếng Việt, mỗi nhận định phải có citation [Nguồn, Năm]."
+    )
+
+    answer = _call_llm(SYSTEM_PROMPT, user_message)
+
+    return {
+        "answer": answer,
+        "sources": chunks,
+        "retrieval_source": chunks[0].get("source", "hybrid"),
+    }
 
 
 if __name__ == "__main__":
@@ -193,9 +223,12 @@ if __name__ == "__main__":
     ]
 
     for q in test_queries:
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"Q: {q}")
         print("=" * 70)
         result = generate_with_citation(q)
         print(f"\nA: {result['answer']}")
-        print(f"\n[Sources: {len(result['sources'])} chunks | via {result['retrieval_source']}]")
+        print(
+            f"\n[Sources: {len(result['sources'])} chunks | "
+            f"via {result['retrieval_source']}]"
+        )
