@@ -1,0 +1,216 @@
+# =============================================================================
+# RAG Pipeline — Day08 (Python / Streamlit / ChromaDB / HuggingFace)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Secrets & credentials (KHÔNG BAO GIỜ commit)
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+credentials.json
+secrets.json
+service-account*.json
+
+# Streamlit secrets (nếu dùng thay .env)
+.streamlit/secrets.toml
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.envrc
+
+# Type checkers / linters
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pytype/
+.pyre/
+
+# -----------------------------------------------------------------------------
+# Testing & coverage
+# -----------------------------------------------------------------------------
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.cache/pytest
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# -----------------------------------------------------------------------------
+# Jupyter / notebooks
+# -----------------------------------------------------------------------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# -----------------------------------------------------------------------------
+# IDE & editors
+# -----------------------------------------------------------------------------
+# VS Code / Cursor
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime / Vim / Emacs
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+\#*\#
+.\#*
+
+# -----------------------------------------------------------------------------
+# OS generated
+# -----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# -----------------------------------------------------------------------------
+# Logs & temp files
+# -----------------------------------------------------------------------------
+*.log
+logs/
+log/
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# -----------------------------------------------------------------------------
+# ML / AI model caches (tải lại khi chạy Task 4–7)
+# -----------------------------------------------------------------------------
+.cache/
+.huggingface/
+hf_cache/
+transformers_cache/
+sentence_transformers/
+torch_cache/
+*.pt
+*.pth
+*.onnx
+*.safetensors
+
+# OpenAI / eval framework caches
+.openai/
+.deepeval/
+.ragas/
+.trulens/
+
+# -----------------------------------------------------------------------------
+# Crawl4AI & web crawl artifacts
+# -----------------------------------------------------------------------------
+.crawl4ai/
+crawl4ai_cache/
+screenshots/
+playwright-report/
+playwright/.cache/
+.ms-playwright/
+
+# -----------------------------------------------------------------------------
+# Vector store & generated indexes (build lại bằng Task 4)
+# Nếu nhóm muốn commit ChromaDB sẵn → comment 2 dòng dưới
+# -----------------------------------------------------------------------------
+data/chroma_db/
+!data/chroma_db/.gitkeep
+
+# FAISS / Weaviate local dumps (nếu thử nghiệm)
+*.faiss
+*.index
+weaviate_data/
+
+# -----------------------------------------------------------------------------
+# Crawl / convert runtime output (giữ landing + standardized trong git)
+# -----------------------------------------------------------------------------
+# File tạm khi crawl hoặc convert lỗi
+data/landing/**/*.partial
+data/landing/**/*.crdownload
+data/standardized/**/*.partial
+
+# -----------------------------------------------------------------------------
+# Streamlit
+# -----------------------------------------------------------------------------
+.streamlit/*.log
+
+# -----------------------------------------------------------------------------
+# Evaluation outputs (giữ golden_dataset.json & results.md trong git)
+# -----------------------------------------------------------------------------
+group_project/evaluation/.deepeval/
+group_project/evaluation/runs/
+group_project/evaluation/*.csv
+group_project/evaluation/*.parquet
+group_project/evaluation/wandb/
+group_project/evaluation/mlruns/
+
+# -----------------------------------------------------------------------------
+# Docker (nếu dùng Weaviate / services sau này)
+# -----------------------------------------------------------------------------
+docker-compose.override.yml
+
+# -----------------------------------------------------------------------------
+# Misc project-specific
+# -----------------------------------------------------------------------------
+# File zip/tar backup data lớn
+*.zip
+*.tar.gz
+*.7z
+
+# Local notes không cần share
+notes.local.md
+TODO.local.md

@@ -1,0 +1,10 @@
+python-dotenv
+crawl4ai
+markitdown[pdf]
+langchain-text-splitters
+sentence-transformers
+chromadb
+rank-bm25
+pageindex
+openai
+streamlit
