@@ -1,347 +1,245 @@
 """
-Task 8 — PageIndex Vectorless RAG.
-
-Đăng ký tài khoản tại: https://pageindex.ai/
-SDK & sample code: https://github.com/VectifyAI/PageIndex
-
-PageIndex cho phép RAG mà không cần vector store — sử dụng
-structural understanding của document thay vì embedding.
+Task 8 — PageIndex Vectorless RAG (Reasoning-based RAG) với Gemini.
 
 Cài đặt:
-    pip install pageindex
-
-Hướng dẫn:
-    1. Đăng ký account tại pageindex.ai
-    2. Lấy API key → PAGEINDEX_API_KEY trong .env
-    3. Upload PDF từ data/landing/legal/
-    4. Query bằng submit_query + get_retrieval (vectorless retrieval API)
+    pip install pageindex google-genai python-dotenv markdown pdfkit
+    (Yêu cầu hệ thống phải cài đặt wkhtmltopdf)
 """
 
-import json
 import os
-import sys
-import time
+import json
 from pathlib import Path
-
 from dotenv import load_dotenv
 
-_ROOT = Path(__file__).resolve().parent.parent
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
+# Thư viện để convert MD sang PDF
+import markdown
+import pdfkit
 
-load_dotenv(_ROOT / ".env")
-
-from pageindex import PageIndexClient
-from pageindex.client import PageIndexAPIError
+# Tải biến môi trường
+load_dotenv()
 
 PAGEINDEX_API_KEY = os.getenv("PAGEINDEX_API_KEY", "")
-LANDING_LEGAL_DIR = _ROOT / "data" / "landing" / "legal"
-DOC_IDS_FILE = _ROOT / "data" / "pageindex_doc_ids.json"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
-POLL_INTERVAL_SEC = 10
-UPLOAD_TIMEOUT_SEC = 600
-RETRIEVAL_TIMEOUT_SEC = 180
-
-_client: PageIndexClient | None = None
+STANDARDIZED_DIR = Path(__file__).parent.parent / "data" / "standardized"
+PDF_TEMP_DIR = Path(__file__).parent.parent / "data" / "pdf_temp"
+DOC_IDS_FILE = Path(__file__).parent / "pageindex_doc_ids.json"
 
 
-def _get_client() -> PageIndexClient:
-    global _client
-    if not PAGEINDEX_API_KEY or PAGEINDEX_API_KEY == "pi_xxx":
-        raise ValueError(
-            "PAGEINDEX_API_KEY chưa được cấu hình. "
-            "Thêm key vào .env (lấy tại https://dash.pageindex.ai/api-keys)"
-        )
-    if _client is None:
-        _client = PageIndexClient(api_key=PAGEINDEX_API_KEY)
-    return _client
-
-
-def _load_doc_registry() -> list[dict]:
-    if DOC_IDS_FILE.exists():
-        return json.loads(DOC_IDS_FILE.read_text(encoding="utf-8"))
-    return []
-
-
-def _save_doc_registry(registry: list[dict]):
-    DOC_IDS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    DOC_IDS_FILE.write_text(
-        json.dumps(registry, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-
-
-def _wait_for_document_ready(client: PageIndexClient, doc_id: str) -> dict:
-    """Chờ document xử lý xong và sẵn sàng retrieval."""
-    deadline = time.time() + UPLOAD_TIMEOUT_SEC
-    while time.time() < deadline:
-        info = client.get_document(doc_id)
-        status = info.get("status", "")
-        print(f"    status={status}", end="", flush=True)
-
-        if status == "failed":
-            raise RuntimeError(f"PageIndex xử lý thất bại: {doc_id}")
-
-        if status == "completed" and client.is_retrieval_ready(doc_id):
-            print(" → ready")
-            return info
-
-        print(" → chờ...", flush=True)
-        time.sleep(POLL_INTERVAL_SEC)
-
-    raise TimeoutError(f"Timeout chờ document {doc_id} sẵn sàng retrieval")
-
-
-def upload_documents(force: bool = False) -> list[dict]:
+def convert_md_to_pdf(md_path: Path, pdf_path: Path) -> bool:
     """
-    Upload PDF pháp luật từ data/landing/legal/ lên PageIndex.
-
-    PageIndex SDK chỉ nhận PDF. doc_id được lưu tại data/pageindex_doc_ids.json
-    để tái sử dụng khi query, không upload lại mỗi lần chạy.
+    Chuyển đổi file Markdown sang PDF có hỗ trợ Unicode Tiếng Việt.
     """
-    client = _get_client()
-    registry = [] if force else _load_doc_registry()
-    known_files = {item["file"] for item in registry}
-
-    pdf_files = sorted(LANDING_LEGAL_DIR.glob("*.pdf"))
-    if not pdf_files:
-        raise FileNotFoundError(f"Không tìm thấy PDF trong {LANDING_LEGAL_DIR}")
-
-    for pdf_path in pdf_files:
-        if pdf_path.name in known_files and not force:
-            print(f"  ↷ Đã upload trước đó: {pdf_path.name}")
-            continue
-
-        print(f"  ↑ Uploading: {pdf_path.name}")
-        result = client.submit_document(str(pdf_path))
-        doc_id = result["doc_id"]
-        print(f"    doc_id={doc_id}")
-
-        info = _wait_for_document_ready(client, doc_id)
-        registry = [r for r in registry if r["file"] != pdf_path.name]
-        registry.append({
-            "file": pdf_path.name,
-            "doc_id": doc_id,
-            "name": info.get("name", pdf_path.name),
-            "page_num": info.get("pageNum"),
-        })
-        _save_doc_registry(registry)
-        print(f"  ✓ Ready: {pdf_path.name}")
-
-    return registry
-
-
-def get_doc_ids() -> list[str]:
-    """Lấy danh sách doc_id đã upload."""
-    registry = _load_doc_registry()
-    if registry:
-        return [item["doc_id"] for item in registry]
-
-    # Chưa có registry local — thử lấy từ PageIndex cloud
-    client = _get_client()
-    remote = client.list_documents(limit=100).get("documents", [])
-    completed = [
-        d["id"] for d in remote
-        if d.get("status") == "completed"
-    ]
-    if completed:
-        return completed
-
-    raise RuntimeError(
-        "Chưa có document trên PageIndex. Chạy upload_documents() trước."
-    )
+    try:
+        # Đọc nội dung Markdown
+        md_text = md_path.read_text(encoding="utf-8")
+        
+        # Chuyển MD sang HTML
+        html_content = markdown.markdown(md_text)
+        
+        # Bọc HTML với meta UTF-8 để không bị lỗi font tiếng Việt
+        html_with_meta = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }}
+                h1, h2, h3 {{ color: #333; }}
+            </style>
+        </head>
+        <body>
+            {html_content}
+        </body>
+        </html>
+        """
+        
+        # Tùy chọn (Tắt log rác của pdfkit)
+        options = {'quiet': ''}
+        
+        # Tạo PDF
+        pdfkit.from_string(html_with_meta, str(pdf_path), options=options)
+        return True
+        
+    except OSError as e:
+        if "No wkhtmltopdf executable found" in str(e):
+            print("\n⚠ LỖI THIẾU CÔNG CỤ: Hệ thống của bạn chưa cài đặt 'wkhtmltopdf'.")
+            print("  - Nếu dùng Colab/Linux: Chạy lệnh `!apt-get install wkhtmltopdf`")
+            print("  - Nếu dùng Windows: Tải và cài đặt từ https://wkhtmltopdf.org/downloads.html")
+            raise e
+        else:
+            print(f"⚠ Lỗi khi convert file {md_path.name}: {e}")
+            return False
+    except Exception as e:
+        print(f"⚠ Lỗi không xác định khi convert file {md_path.name}: {e}")
+        return False
 
 
-def _poll_retrieval(client: PageIndexClient, retrieval_id: str) -> dict:
-    deadline = time.time() + RETRIEVAL_TIMEOUT_SEC
-    while time.time() < deadline:
-        result = client.get_retrieval(retrieval_id)
-        status = result.get("status", "")
-        if status in ("completed", "success", "done"):
-            return result
-        if status in ("failed", "error"):
-            raise RuntimeError(f"Retrieval thất bại: {result}")
-        time.sleep(3)
-    raise TimeoutError(f"Timeout retrieval {retrieval_id}")
+def upload_documents():
+    """
+    Convert markdown sang PDF, upload lên PageIndex và lưu lại doc_id.
+    """
+    if not PAGEINDEX_API_KEY:
+        print("⚠ LỖI: Chưa có PAGEINDEX_API_KEY.")
+        return
 
+    try:
+        from pageindex import PageIndexClient
+        pi_client = PageIndexClient(api_key=PAGEINDEX_API_KEY)
+        
+        md_files = list(STANDARDIZED_DIR.rglob("*.md"))
+        if not md_files:
+            print("⚠ Không tìm thấy file .md nào. Hãy chạy Task 3 trước!")
+            return
+            
+        print(f"Bắt đầu xử lý và upload {len(md_files)} tài liệu...")
+        
+        # Tạo thư mục lưu PDF tạm thời nếu chưa có
+        PDF_TEMP_DIR.mkdir(parents=True, exist_ok=True)
+        doc_ids_map = {}
+        
+        for md_file in md_files:
+            pdf_path = PDF_TEMP_DIR / f"{md_file.stem}.pdf"
+            
+            print(f"\n  Đang chuyển đổi: {md_file.name} -> PDF...")
+            if convert_md_to_pdf(md_file, pdf_path):
+                print(f"  Đang upload file PDF...")
+                
+                # Upload file PDF thay vì file Markdown
+                response = pi_client.submit_document(str(pdf_path))
+                doc_id = response.get("doc_id")
+                
+                if doc_id:
+                    doc_type = "legal" if "legal" in md_file.parts else "news"
+                    # Vẫn lưu ánh xạ với tên file .md gốc để đồng bộ nguồn với các Task trước
+                    doc_ids_map[md_file.name] = {
+                        "doc_id": doc_id,
+                        "type": doc_type
+                    }
+                    print(f"    ✓ Thành công (doc_id: {doc_id})")
+                
+        # Lưu dữ liệu quản lý
+        DOC_IDS_FILE.write_text(json.dumps(doc_ids_map, indent=2), encoding="utf-8")
+        print(f"\n✓ Hoàn tất! Đã lưu ánh xạ ID vào {DOC_IDS_FILE.name}")
 
-def _parse_retrieval_result(result: dict, doc_id: str, file_name: str) -> list[dict]:
-    """Chuẩn hóa response PageIndex thành format pipeline."""
-    items: list[dict] = []
-
-    # Format PageIndex retrieval API: retrieved_nodes
-    nodes = result.get("retrieved_nodes")
-    if isinstance(nodes, list):
-        for rank, node in enumerate(nodes):
-            score = max(0.1, 1.0 - rank * 0.05)
-            title = node.get("title", "")
-            node_id = node.get("id", "")
-
-            for group in node.get("relevant_contents") or []:
-                entries = group if isinstance(group, list) else [group]
-                for entry in entries:
-                    if not isinstance(entry, dict):
-                        continue
-                    content = entry.get("relevant_content") or entry.get("content") or ""
-                    if not content.strip():
-                        continue
-                    items.append({
-                        "content": content.strip(),
-                        "score": score,
-                        "metadata": {
-                            "doc_id": doc_id,
-                            "file": file_name,
-                            "node_id": node_id,
-                            "section_title": entry.get("section_title") or title,
-                            "page": entry.get("physical_index"),
-                        },
-                        "source": "pageindex",
-                    })
-        return items
-
-    # Format 1: result["result"] là list các chunk
-    raw = result.get("result") or result.get("results") or result.get("data")
-    if isinstance(raw, list):
-        for i, item in enumerate(raw):
-            if isinstance(item, str):
-                content = item
-                score = max(0.1, 1.0 - i * 0.05)
-                meta = {"doc_id": doc_id, "file": file_name}
-            elif isinstance(item, dict):
-                content = (
-                    item.get("content")
-                    or item.get("text")
-                    or item.get("chunk")
-                    or ""
-                )
-                score = float(item.get("score", item.get("relevance", 1.0 - i * 0.05)))
-                meta = {
-                    "doc_id": doc_id,
-                    "file": file_name,
-                    "page": item.get("page") or item.get("page_index"),
-                    "node_id": item.get("node_id"),
-                }
-            else:
-                continue
-            if content.strip():
-                items.append({
-                    "content": content.strip(),
-                    "score": score,
-                    "metadata": meta,
-                    "source": "pageindex",
-                })
-        return items
-
-    # Format 2: result["result"] là string (answer + context)
-    if isinstance(raw, str) and raw.strip():
-        return [{
-            "content": raw.strip(),
-            "score": 1.0,
-            "metadata": {"doc_id": doc_id, "file": file_name},
-            "source": "pageindex",
-        }]
-
-    # Format 3: answer field
-    answer = result.get("answer") or result.get("response")
-    if isinstance(answer, str) and answer.strip():
-        return [{
-            "content": answer.strip(),
-            "score": 1.0,
-            "metadata": {"doc_id": doc_id, "file": file_name},
-            "source": "pageindex",
-        }]
-
-    return items
-
-
-def _search_single_doc(
-    client: PageIndexClient,
-    doc_id: str,
-    file_name: str,
-    query: str,
-    top_k: int,
-) -> list[dict]:
-    """Query một document qua retrieval API, fallback Chat API."""
-    submitted = client.submit_query(doc_id=doc_id, query=query, thinking=False)
-    retrieval_id = submitted["retrieval_id"]
-    result = _poll_retrieval(client, retrieval_id)
-    return _parse_retrieval_result(result, doc_id, file_name)
+    except Exception as e:
+        print(f"\n⚠ Dừng upload do lỗi: {e}")
 
 
 def pageindex_search(query: str, top_k: int = 5) -> list[dict]:
     """
-    Vectorless retrieval sử dụng PageIndex.
-    Dùng làm fallback khi hybrid search không có kết quả tốt.
-
-    Args:
-        query: Câu truy vấn
-        top_k: Số lượng kết quả tối đa
-
-    Returns:
-        List of {
-            'content': str,
-            'score': float,
-            'metadata': dict,
-            'source': 'pageindex'
-        }
+    Vectorless retrieval sử dụng LLM Reasoning (Gemini) trên PageIndex Tree.
     """
-    if top_k <= 0:
+    if not PAGEINDEX_API_KEY or not GEMINI_API_KEY:
+        print("⚠ Cần có cả PAGEINDEX_API_KEY và GEMINI_API_KEY trong .env để chạy search.")
         return []
 
-    client = _get_client()
-    registry = _load_doc_registry()
-    doc_map = {item["doc_id"]: item.get("file", "") for item in registry}
+    if not DOC_IDS_FILE.exists():
+        print("⚠ Chưa có dữ liệu tài liệu. Hãy gọi hàm upload_documents() trước!")
+        return []
 
-    if not doc_map:
-        doc_ids = get_doc_ids()
-        doc_map = {doc_id: "" for doc_id in doc_ids}
+    try:
+        from pageindex import PageIndexClient
+        import pageindex.utils as utils
+        from google import genai
+        from google.genai import types
 
-    all_results: list[dict] = []
-    for doc_id, file_name in doc_map.items():
-        if len(all_results) >= top_k:
-            break
-        if not client.is_retrieval_ready(doc_id):
-            print(f"  ⚠ Document chưa sẵn sàng: {file_name or doc_id}")
-            continue
-        try:
-            hits = _search_single_doc(client, doc_id, file_name, query, top_k)
-            all_results.extend(hits)
-        except PageIndexAPIError as exc:
-            print(f"  ⚠ Query thất bại ({file_name or doc_id}): {exc}")
-            if "Insufficient credits" in str(exc):
+        doc_ids_map = json.loads(DOC_IDS_FILE.read_text(encoding="utf-8"))
+        pi_client = PageIndexClient(api_key=PAGEINDEX_API_KEY)
+        
+        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        MODEL_ID = "gemini-2.5-flash" 
+
+        results = []
+
+        for doc_name, doc_info in doc_ids_map.items():
+            if len(results) >= top_k:
                 break
+                
+            doc_id = doc_info["doc_id"]
+            if not pi_client.is_retrieval_ready(doc_id):
+                continue
+                
+            tree = pi_client.get_tree(doc_id, node_summary=True)['result']
+            tree_without_text = utils.remove_fields(tree.copy(), fields=['text'])
 
-    all_results.sort(key=lambda x: x["score"], reverse=True)
+            search_prompt = f"""
+            You are a helpful assistant. You are given a question and a document tree structure.
+            Find all nodes that are likely to contain the answer to the question.
+            
+            Question: {query}
+            Document Name: {doc_name}
+            Document Tree: {json.dumps(tree_without_text)}
+            """
 
-    # Loại trùng nội dung
-    seen: set[str] = set()
-    unique: list[dict] = []
-    for item in all_results:
-        key = item["content"][:200]
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append(item)
+            response_schema = {
+                "type": "OBJECT",
+                "properties": {
+                    "node_list": {
+                        "type": "ARRAY",
+                        "items": {"type": "STRING"}
+                    }
+                },
+                "required": ["node_list"]
+            }
 
-    return unique[:top_k]
+            response = gemini_client.models.generate_content(
+                model=MODEL_ID,
+                contents=search_prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=response_schema,
+                    temperature=0.0,
+                ),
+            )
+            
+            llm_decision = json.loads(response.text)
+            selected_nodes = llm_decision.get("node_list", [])
+
+            if selected_nodes:
+                node_map = utils.create_node_mapping(tree)
+                for n_id in selected_nodes:
+                    if n_id in node_map and node_map[n_id].get("text"):
+                        results.append({
+                            "content": node_map[n_id]["text"],
+                            "score": 1.0, 
+                            "metadata": {
+                                "source": doc_name,
+                                "type": doc_info["type"],
+                                "node_id": n_id
+                            },
+                            "source": "pageindex"
+                        })
+                        if len(results) >= top_k:
+                            break
+
+        return results[:top_k]
+
+    except Exception as e:
+        print(f"⚠ Lỗi truy xuất PageIndex (Gemini): {e}")
+        return []
 
 
 if __name__ == "__main__":
-    if not PAGEINDEX_API_KEY or PAGEINDEX_API_KEY == "pi_xxx":
-        print("⚠ Hãy set PAGEINDEX_API_KEY trong file .env")
-        print("  Đăng ký tại: https://pageindex.ai/")
-        sys.exit(1)
+    if not PAGEINDEX_API_KEY or not GEMINI_API_KEY:
+        print("=" * 50)
+        print("⚠ YÊU CẦU API KEY:")
+        print("Hãy đảm bảo file .env của bạn có:")
+        print("PAGEINDEX_API_KEY=...")
+        print("GEMINI_API_KEY=...")
+        print("=" * 50)
+    else:
+        print("Bắt đầu chạy Task 8 (Gemini + PDF Conversion)...")
+        
+        # Mở comment dòng dưới ĐỂ CHẠY UPLOAD, sau khi tải xong thì comment lại.
+        upload_documents()
 
-    print("=" * 50)
-    print("Task 8: PageIndex Vectorless RAG")
-    print("=" * 50)
-
-    print("\n--- Upload documents ---")
-    registry = upload_documents()
-    print(f"\n✓ {len(registry)} documents trên PageIndex")
-
-    print("\n--- Test query ---")
-    results = pageindex_search("hình phạt sử dụng ma tuý", top_k=3)
-    for r in results:
-        src = r["metadata"].get("file", r["metadata"].get("doc_id", ""))
-        print(f"[{r['score']:.3f}] ({src}) {r['content'][:120]}...")
+        print("\nTest query:")
+        search_results = pageindex_search("hình phạt tàng trữ trái phép chất ma tuý", top_k=2)
+        
+        if search_results:
+            for i, r in enumerate(search_results, 1):
+                print(f"\n--- Kết quả {i} [Từ: {r['metadata']['source']}] ---")
+                print(f"{r['content'][:200]}...")
+        else:
+            print("Không tìm thấy kết quả phù hợp.")

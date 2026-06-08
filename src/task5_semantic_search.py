@@ -9,35 +9,24 @@ Yêu cầu:
     - Phải tương thích với embedding model và vector store ở Task 4
 """
 
-import sys
-from pathlib import Path
+import weaviate
+from weaviate.classes.query import MetadataQuery
+from sentence_transformers import SentenceTransformer
 
-_ROOT = Path(__file__).resolve().parent.parent
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
-
-import chromadb
-
-from src.task4_chunking_indexing import (
-    CHROMA_DIR,
-    COLLECTION_NAME,
-    _get_embedding_model,
-)
-
-_collection = None
-
-
-def _get_collection():
-    global _collection
-    if _collection is None:
-        client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-        _collection = client.get_collection(COLLECTION_NAME)
-    return _collection
+# Load model một lần duy nhất ở global scope để tối ưu tốc độ 
+# (tránh việc mỗi lần gọi hàm lại phải load lại model vài GB vào RAM)
+try:
+    print("Loading embedding model 'BAAI/bge-m3'...")
+    embedding_model = SentenceTransformer("BAAI/bge-m3")
+    print("✓ Model loaded successfully.")
+except Exception as e:
+    print(f"⚠ Lỗi load model: {e}")
+    embedding_model = None
 
 
 def semantic_search(query: str, top_k: int = 10) -> list[dict]:
     """
-    Tìm kiếm ngữ nghĩa sử dụng vector similarity.
+    Tìm kiếm ngữ nghĩa sử dụng vector similarity qua Weaviate.
 
     Args:
         query: Câu truy vấn
@@ -51,50 +40,71 @@ def semantic_search(query: str, top_k: int = 10) -> list[dict]:
         }
         Sorted by score descending.
     """
-    if top_k <= 0:
-        return []
+    if embedding_model is None:
+        raise RuntimeError("Embedding model chưa được khởi tạo!")
 
-    model = _get_embedding_model()
-    query_embedding = model.encode(
-        query,
-        normalize_embeddings=True,
-    ).tolist()
+    # Bước 1: Nhúng (embed) câu truy vấn thành vector
+    query_embedding = embedding_model.encode(query).tolist()
 
-    collection = _get_collection()
-    n_results = min(top_k, collection.count())
-    if n_results == 0:
-        return []
+    results = []
+    client = None
 
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=n_results,
-        include=["documents", "metadatas", "distances"],
-    )
+    try:
+        # Bước 2: Kết nối tới Weaviate và truy vấn
+        client = weaviate.connect_to_embedded()
+        
+        collection = client.collections.get("DrugLawDocs")
+        collection = client.collections.get("DrugLawDocs")
 
-    documents = results["documents"][0]
-    metadatas = results["metadatas"][0]
-    distances = results["distances"][0]
+        # Thực hiện tìm kiếm vector (near_vector)
+        response = collection.query.near_vector(
+            near_vector=query_embedding,
+            limit=top_k,
+            return_metadata=MetadataQuery(distance=True)
+        )
 
-    output = []
-    for doc, meta, distance in zip(documents, metadatas, distances):
-        # Chroma cosine distance = 1 - cosine_similarity (với vector đã normalize)
-        score = 1.0 - distance
-        output.append({
-            "content": doc,
-            "score": float(score),
-            "metadata": {
-                "source": meta.get("source", ""),
-                "doc_type": meta.get("doc_type", ""),
-                "chunk_index": meta.get("chunk_index", 0),
-                "path": meta.get("path", ""),
-            },
-        })
+        # Bước 3: Format kết quả trả về
+        for obj in response.objects:
+            # Weaviate trả về 'distance'. 
+            # Với Cosine distance, Similarity = 1 - Distance
+            score = 1.0 - obj.metadata.distance
 
-    output.sort(key=lambda x: x["score"], reverse=True)
-    return output
+            results.append({
+                "content": obj.properties["content"],
+                "score": float(score),
+                "metadata": {
+                    "source": obj.properties.get("source", "unknown"),
+                    "type": obj.properties.get("doc_type", "unknown"),
+                    "chunk_index": obj.properties.get("chunk_index", -1)
+                }
+            })
+
+    except weaviate.exceptions.WeaviateConnectionError:
+        print("\n⚠ LỖI: Không thể kết nối tới Weaviate. Hãy chắc chắn Docker Weaviate đang chạy!")
+    except Exception as e:
+        print(f"\n⚠ LỖI trong quá trình Semantic Search: {e}")
+    finally:
+        # Đảm bảo đóng kết nối an toàn
+        if client is not None:
+            client.close()
+
+    return results
 
 
 if __name__ == "__main__":
-    results = semantic_search("hình phạt cho tội tàng trữ ma tuý", top_k=5)
-    for r in results:
-        print(f"[{r['score']:.3f}] ({r['metadata']['source']}) {r['content'][:100]}...")
+    # Test script
+    print("=" * 50)
+    print("Testing Semantic Search")
+    print("=" * 50)
+    
+    test_query = "hình phạt cho tội tàng trữ ma tuý"
+    print(f"\nQuery: '{test_query}'\n")
+    
+    search_results = semantic_search(test_query, top_k=3)
+    
+    if search_results:
+        for i, r in enumerate(search_results, 1):
+            print(f"Kết quả {i} | Score: {r['score']:.4f} | Nguồn: {r['metadata']['source']}")
+            print(f"Trích xuất: {r['content'][:150]}...\n")
+    else:
+        print("Không tìm thấy kết quả hoặc có lỗi xảy ra.")
